@@ -1,0 +1,17 @@
+version: 1
+lifecycle:
+  stage: pending
+  active: null
+  bound_at: 2026-05-22T14:39:17.434810+00:00
+  approved_at: null
+  approved_by: null
+  promoted_at: null
+  zitadel_user_id: null
+  granted_roles: []
+  suspended_at: null
+  suspended_reason: null
+  retired_at: null
+audit:
+  seed_id: IFOZtBYg
+  created_by: fleet-genesis
+  notes: Daemon gimjeonghan-ui-macbookpro.local

@@ -1,0 +1,4 @@
+roles:
+- worker
+labels:
+  zone: kr
