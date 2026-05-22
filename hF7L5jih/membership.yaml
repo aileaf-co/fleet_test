@@ -2,7 +2,7 @@ version: 1
 lifecycle:
   stage: pending
   active: null
-  bound_at: 2026-05-22T12:17:37.588250+00:00
+  bound_at: 2026-05-22T12:17:42.534931+00:00
   approved_at: null
   approved_by: null
   promoted_at: null
