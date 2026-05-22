@@ -15,7 +15,7 @@
   connection: local
   gather_facts: false
   vars:
-    openclaw_home: "{{ ansible_env.HOME }}/.openclaw"
+    openclaw_home: "{{ lookup('env', 'HOME') }}/.openclaw"
   tasks:
     - name: OpenClaw npm package
       community.general.npm:

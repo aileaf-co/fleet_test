@@ -2,9 +2,13 @@
 # Hermes Agent (Nous Research) — installed/removed by the moum-ops cascade.
 #
 # `state` (present|absent) is injected by the reconciler via --extra-vars.
-# The official installer clones the repo into HERMES_HOME (~/.hermes) and
-# installs via uv. It is guarded by `creates:` so re-runs are no-ops
-# (idempotent). Clean removal wipes HERMES_HOME entirely.
+# The official installer clones the repo and installs via uv. Root install
+# layout: command /usr/local/bin/hermes, code /usr/local/lib/hermes-agent,
+# data ~/.hermes (HERMES_HOME).
+#
+# Idempotency: a probe task checks whether `hermes` already runs and skips
+# the installer when it does — path-independent (works root and non-root).
+# Clean removal wipes command + code + HERMES_HOME.
 #
 # uv is provided by the sandbox image.
 - name: Hermes agent ({{ state | default('present') }})
@@ -12,25 +16,40 @@
   connection: local
   gather_facts: false
   vars:
-    hermes_home: "{{ ansible_env.HOME }}/.hermes"
+    hermes_home: "{{ lookup('env', 'HOME') }}"
+    hermes_paths:
+      - /usr/local/bin/hermes
+      - /usr/local/lib/hermes-agent
+      - "{{ hermes_home }}/.hermes"
+      - "{{ hermes_home }}/.local/bin/hermes"
+      - "{{ hermes_home }}/.local/lib/hermes-agent"
   tasks:
-    - name: Install Hermes agent (official installer — runs once)
+    - name: Probe — is Hermes already installed?
+      ansible.builtin.command: hermes --version
+      register: hermes_probe
+      changed_when: false
+      failed_when: false
+      when: state == 'present'
+
+    - name: Install Hermes agent (official installer — only when absent)
       ansible.builtin.shell: >
         curl -fsSL
         https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh
         | bash -s -- --skip-setup
       args:
-        creates: "{{ hermes_home }}/hermes-agent"
         executable: /bin/bash
-      when: state == 'present'
+      when:
+        - state == 'present'
+        - hermes_probe.rc | default(1) != 0
 
     - name: Verify Hermes is runnable
       ansible.builtin.command: hermes --version
       changed_when: false
       when: state == 'present'
 
-    - name: Hermes clean removal — HERMES_HOME
+    - name: Hermes clean removal — command + code + HERMES_HOME
       ansible.builtin.file:
-        path: "{{ hermes_home }}"
+        path: "{{ item }}"
         state: absent
+      loop: "{{ hermes_paths }}"
       when: state == 'absent'
