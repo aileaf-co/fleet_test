@@ -1,0 +1,14 @@
+# Fleet-root software baseline — _fleet/software.yaml
+#
+# Cascade level 1 (lowest precedence): applies to EVERY daemon in the fleet.
+# Per-daemon daemon.yaml entries (level 2) and a node's software.local.yaml
+# (level 3) override these by playbook name.
+# Resolved by moumd's reconciler::resolve_effective_entries.
+entries:
+  - playbook: openclaw
+    source: fleet
+    state: present
+
+  - playbook: hermes
+    source: fleet
+    state: present

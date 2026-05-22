@@ -1,0 +1,44 @@
+---
+# OpenClaw agent — installed/removed by the moum-ops Ansible 3-tier cascade.
+#
+# `state` (present|absent) is injected by the reconciler via --extra-vars.
+# Idempotent by construction:
+#   - community.general.npm converges on `state` (no-op if already there)
+#   - the .env config is content-idempotent (lineinfile + regexp)
+#   - removal is absent=no-op when the directory is already gone
+# A second run with the same state reports changed=0.
+#
+# Node.js (>= 22.19) is provided by the sandbox image — this playbook
+# installs the agent itself.
+- name: OpenClaw agent ({{ state | default('present') }})
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    openclaw_home: "{{ ansible_env.HOME }}/.openclaw"
+  tasks:
+    - name: OpenClaw npm package
+      community.general.npm:
+        name: openclaw
+        global: true
+        state: "{{ state }}"
+
+    - name: OpenClaw environment config (API key placeholder)
+      ansible.builtin.lineinfile:
+        path: "{{ openclaw_home }}/.env"
+        regexp: '^OPENAI_API_KEY='
+        line: "OPENAI_API_KEY={{ openclaw_api_key | default('') }}"
+        create: true
+        mode: '0600'
+      when: state == 'present'
+
+    - name: OpenClaw clean removal — config directory
+      ansible.builtin.file:
+        path: "{{ openclaw_home }}"
+        state: absent
+      when: state == 'absent'
+
+    - name: Verify OpenClaw is runnable
+      ansible.builtin.command: openclaw --version
+      changed_when: false
+      when: state == 'present'

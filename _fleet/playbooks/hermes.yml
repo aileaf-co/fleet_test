@@ -1,0 +1,36 @@
+---
+# Hermes Agent (Nous Research) — installed/removed by the moum-ops cascade.
+#
+# `state` (present|absent) is injected by the reconciler via --extra-vars.
+# The official installer clones the repo into HERMES_HOME (~/.hermes) and
+# installs via uv. It is guarded by `creates:` so re-runs are no-ops
+# (idempotent). Clean removal wipes HERMES_HOME entirely.
+#
+# uv is provided by the sandbox image.
+- name: Hermes agent ({{ state | default('present') }})
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    hermes_home: "{{ ansible_env.HOME }}/.hermes"
+  tasks:
+    - name: Install Hermes agent (official installer — runs once)
+      ansible.builtin.shell: >
+        curl -fsSL
+        https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh
+        | bash -s -- --skip-setup
+      args:
+        creates: "{{ hermes_home }}/hermes-agent"
+        executable: /bin/bash
+      when: state == 'present'
+
+    - name: Verify Hermes is runnable
+      ansible.builtin.command: hermes --version
+      changed_when: false
+      when: state == 'present'
+
+    - name: Hermes clean removal — HERMES_HOME
+      ansible.builtin.file:
+        path: "{{ hermes_home }}"
+        state: absent
+      when: state == 'absent'
