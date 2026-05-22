@@ -1,14 +1,20 @@
 ---
-# Hermes Agent (Nous Research) — installed/removed by the moum-ops cascade.
+# Hermes Agent (Nous Research) — installed + configured + clean-removed
+# by the moum-ops cascade.
 #
 # `state` (present|absent) is injected by the reconciler via --extra-vars.
-# The official installer clones the repo and installs via uv. Root install
-# layout: command /usr/local/bin/hermes, code /usr/local/lib/hermes-agent,
-# data ~/.hermes (HERMES_HOME).
+# Root install layout (observed): command /usr/local/bin/hermes, code
+# /usr/local/lib/hermes-agent, data ~/.hermes (HERMES_HOME) containing
+# .env (~23KB API-key template), config.yaml (~57KB), SOUL.md (system
+# prompt), and memories/ (long-term notes).
 #
 # Idempotency: a probe task checks whether `hermes` already runs and skips
 # the installer when it does — path-independent (works root and non-root).
-# Clean removal wipes command + code + HERMES_HOME.
+# `.env`, SOUL.md, and memories/ are content-idempotent. Clean removal
+# wipes command + code + HERMES_HOME.
+#
+# Structural config (config.yaml temperature, model aliases, etc.) is left
+# to the operator via `hermes config set` — schema-aware, validated.
 #
 # uv is provided by the sandbox image.
 - name: Hermes agent ({{ state | default('present') }})
@@ -16,14 +22,15 @@
   connection: local
   gather_facts: false
   vars:
-    hermes_home: "{{ lookup('env', 'HOME') }}"
+    hermes_home: "{{ lookup('env', 'HOME') }}/.hermes"
     hermes_paths:
       - /usr/local/bin/hermes
       - /usr/local/lib/hermes-agent
-      - "{{ hermes_home }}/.hermes"
-      - "{{ hermes_home }}/.local/bin/hermes"
-      - "{{ hermes_home }}/.local/lib/hermes-agent"
+      - "{{ lookup('env', 'HOME') }}/.hermes"
+      - "{{ lookup('env', 'HOME') }}/.local/bin/hermes"
+      - "{{ lookup('env', 'HOME') }}/.local/lib/hermes-agent"
   tasks:
+    # ── Install (when state=present, probe-guarded) ─────────────────────────
     - name: Probe — is Hermes already installed?
       ansible.builtin.command: hermes --version
       register: hermes_probe
@@ -42,11 +49,56 @@
         - state == 'present'
         - hermes_probe.rc | default(1) != 0
 
+    # ── Environment configuration (when state=present) ──────────────────────
+    - name: Hermes .env — OPENROUTER_API_KEY (also clears the commented placeholder)
+      ansible.builtin.lineinfile:
+        path: "{{ hermes_home }}/.env"
+        regexp: '^#?\s*OPENROUTER_API_KEY='
+        line: "OPENROUTER_API_KEY={{ hermes_openrouter_api_key | default('') }}"
+        create: true
+        mode: '0600'
+      when: state == 'present'
+
+    - name: Hermes system prompt (SOUL.md — moum-ops persona)
+      ansible.builtin.copy:
+        dest: "{{ hermes_home }}/SOUL.md"
+        mode: '0644'
+        content: |
+          # Hermes SOUL — moum-ops AI work environment
+
+          You are Hermes, the work-AI agent for a moum-ops-managed fleet node.
+          You assist with engineering, operations, and analysis tasks.
+
+          ## Behavior
+          - Be concise. Prefer running tools over speculation.
+          - Persist non-obvious decisions to `~/.hermes/memories/`.
+
+          ## Style
+          - Code/operations work: low temperature (0.1–0.2) for stability.
+          - Defer to operator preferences captured in memories.
+      when: state == 'present'
+
+    - name: Hermes long-term memory seed
+      ansible.builtin.copy:
+        dest: "{{ hermes_home }}/memories/seed.md"
+        mode: '0644'
+        content: |
+          # Seed memory — moum-ops fleet operator
+
+          This Hermes instance was provisioned by the moum-ops Ansible
+          cascade (`_fleet/playbooks/hermes.yml`).
+          - Structural config: `~/.hermes/config.yaml` (tune via `hermes config set`).
+          - API keys: `~/.hermes/.env`.
+          - Fleet repo: `github.com/aileaf-co/fleet_test`.
+      when: state == 'present'
+
+    # ── Verify (when state=present) ─────────────────────────────────────────
     - name: Verify Hermes is runnable
       ansible.builtin.command: hermes --version
       changed_when: false
       when: state == 'present'
 
+    # ── Clean removal (when state=absent) ───────────────────────────────────
     - name: Hermes clean removal — command + code + HERMES_HOME
       ansible.builtin.file:
         path: "{{ item }}"
