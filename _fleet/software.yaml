@@ -5,6 +5,13 @@
 # (level 3) override these by playbook name.
 # Resolved by moumd's reconciler::resolve_effective_entries.
 entries:
+  # Prerequisite — sops + age binaries for secret decryption.
+  # Reconciler runs this BEFORE the agent playbooks so the secrets
+  # toolchain is available on every daemon.
+  - playbook: secrets-toolchain
+    source: fleet
+    state: present
+
   - playbook: openclaw
     source: fleet
     state: present

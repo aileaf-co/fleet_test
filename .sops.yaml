@@ -1,0 +1,24 @@
+# SOPS encryption policy — moum-ops fleet (per-daemon age keys).
+#
+# Hybrid layout (Option E):
+#   _fleet/secrets.enc.yaml      → multi-recipient (every daemon in this fleet)
+#   {short_id}/secrets.enc.yaml  → single-recipient (that daemon only — isolation)
+#
+# Operators just run `sops --encrypt` and SOPS routes by path automatically.
+# Public keys are committed here so anyone can encrypt; only daemons with the
+# matching private key (at {config_dir}/age.key) can decrypt.
+creation_rules:
+  - path_regex: ^_fleet/secrets\.enc\.yaml$
+    age: >-
+      age19r4j8qqty58drsee4e2t2uzhpk8fuzc5zc9qha7yak2djmpr3prswhe9qc,
+      age1vqp6qllts44d8xneg5aj278rpn3spsyq70ssnmgpp4yfmtf2v43sdhysm8,
+      age1xgfkkqpvuch47u7pqr94e0clhwl3p9qdtccvd2l3quggkj8jpe3sut9htr
+
+  - path_regex: ^IFOZtBYg/secrets\.enc\.yaml$
+    age: age19r4j8qqty58drsee4e2t2uzhpk8fuzc5zc9qha7yak2djmpr3prswhe9qc
+
+  - path_regex: ^hF7L5jih/secrets\.enc\.yaml$
+    age: age1vqp6qllts44d8xneg5aj278rpn3spsyq70ssnmgpp4yfmtf2v43sdhysm8
+
+  - path_regex: ^mJUDYjTi/secrets\.enc\.yaml$
+    age: age1xgfkkqpvuch47u7pqr94e0clhwl3p9qdtccvd2l3quggkj8jpe3sut9htr
