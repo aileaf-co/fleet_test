@@ -1,0 +1,37 @@
+# Fleet PKI — repo 에 절대 들어가서는 안 되는 자료
+# ADR-012 §보안 정책 + README.md "Repo 에 절대 들어가지 않아야 할 자료"
+
+# Private key material (절대 commit 금지)
+*.key
+*.priv
+*.age
+daemon.key
+daemon.csr.tmp
+master.key.enc
+master.key.passphrase
+master.key.salt
+.fallback-dek
+
+# Wrapped key material (mtls SystemMasterKeyProvider 4-tier fallback artifacts)
+authority/
+secrets/.fallback-dek
+
+# BIP39 recovery phrase (운영자 오프라인 백업만)
+recovery-phrase*
+*.bip39
+
+# Operator workspace artifacts
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Build / cache
+target/
+node_modules/
